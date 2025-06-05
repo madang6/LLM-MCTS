@@ -178,12 +178,14 @@ def load_config(path):
 
 def main(config_path="config.yml"):
     project_root = os.path.dirname(os.path.abspath(__file__))
-    mcts_list_path = os.path.join(project_root, "mcts_trees.pkl")
-    mcts_txt_path = os.path.join(project_root, "formatted_trees.txt")
     decision_tree_path = os.path.join(project_root, "plots", "decision_tree.png")
     trajectory_path = os.path.join(project_root, "plots", "episode.png")
 
     config = load_config(config_path)
+
+    visualize = config.get("visualize", True)
+    verbose = config.get("verbose", True)
+    save = config.get("save", True)
 
     random.seed(config.get("random_seed", 56))  # For reproducibility.
 
@@ -209,18 +211,33 @@ def main(config_path="config.yml"):
 
     grid = GridWorld(GRID_WIDTH, GRID_HEIGHT, START, GOAL, SUB_OBJECTIVES, OBSTACLES, MAX_ROLLOUT_STEPS,
                      OBSTACLE_COST)
-    robot = MCTS(grid, MAX_EPISODE_STEPS)
-    # robot = RRT(grid, MAX_EPISODE_STEPS)
+    
+    algorithm_name = config.get("algorithm", "mcts").upper()
+    if algorithm_name == "RRT":
+        robot = RRT(grid, MAX_EPISODE_STEPS)
+    elif algorithm_name == "MCTS":
+        robot = MCTS(grid, MAX_EPISODE_STEPS)
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm_name}")
 
     random.seed(config.get("random_seed_episode", 62))  # For reproducibility.
 
     # Simulate an episode.
-    episode_path, tree_list = robot.simulate_episode(iterations_per_move)
-    # episode_path, trajectories = robot.simulate_episode()
+    if algorithm_name == "MCTS":
+        mcts_txt_path = os.path.join(project_root, "formatted_trees.txt")
+        mcts_list_path = os.path.join(project_root, "mcts_trees.pkl")
+        episode_path, tree_list = robot.simulate_episode(iterations_per_move)
+    elif algorithm_name == "RRT":
+        rrt_txt_path = os.path.join(project_root, "formatted_trees.txt")
+        rrt_list_path = os.path.join(project_root, "rrt_trees.pkl")
+        episode_path, trajectories, episode_tree = robot.simulate_episode()
+    else:
+        raise ValueError(f"Unknown algorithm: {algorithm_name}")
 
-    print("Episode path (each state shows (position, objectives_remaining)):")
-    for state in episode_path:
-        print(state)
+    if verbose:
+        print("Episode path (each state shows (position, objectives_remaining)):")
+        for state in episode_path:
+            print(state)
 
     # for idx,trajectory in enumerate(trajectories):
     #     print(f"Trajectory {idx}:")
@@ -231,13 +248,22 @@ def main(config_path="config.yml"):
     # robot.save_tree(tree_list, mcts_list_path)
     
     # Save the list of MCTS trees from the episode for evaluation.
-    robot.save_formatted_trees_to_file(mcts_list_path, mcts_txt_path)
-    print("MCTS trees saved to mcts_trees.pkl")
-
-    grid.plot_episode(episode_path, save_path=trajectory_path)
-    robot.load_and_plot_tree(mcts_txt_path, 6, save_path=decision_tree_path)
-
-    # principal_component_analysis(trajectories)
+    if algorithm_name == "MCTS":
+        if save:
+            robot.save_formatted_trees_to_file(mcts_list_path, mcts_txt_path)
+            print("MCTS trees saved to mcts_trees.pkl")
+        if visualize and os.path.exists(mcts_txt_path):
+            grid.plot_episode(episode_path, save_path=trajectory_path)
+            robot.load_and_plot_tree(mcts_txt_path, 6, save_path=decision_tree_path)
+            # principal_component_analysis(trajectories)
+    elif algorithm_name == "RRT":
+        if save:
+            robot.save_tree(trajectories, rrt_txt_path)
+            print("RRT trajectories saved to rrt_tree.pkl")
+        if visualize and os.path.exists(rrt_txt_path):
+            grid.plot_episode(episode_path, save_path=trajectory_path)
+            robot.visualize_tree(episode_tree, 6, save_path=decision_tree_path)
+            # principal_component_analysis(trajectories)
 
 if __name__ == "__main__":
     import argparse

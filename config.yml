@@ -1,3 +1,7 @@
+algorithm: "rrt"
+visualize: true
+verbose: true
+save: true
 random_seed: 56
 random_seed_episode: 62
 grid_width: 5

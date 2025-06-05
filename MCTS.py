@@ -86,7 +86,8 @@ class RRT:
                 # print("Best candidate path from root to near-terminal node:")
                 # for state in path:
                     # print(state)
-                return path, trajectories
+                # self.visualize_tree(episode_tree, fontsize=8, save_path=f"/home/admin/workspaces/explainability/Python-LLM/plots/rrt_tree_{steps}.png")
+                return path, trajectories, episode_tree
             else:
                 print("No candidate node found.")
                 return None, trajectories
@@ -171,7 +172,7 @@ class RRT:
                 G.add_edge(id(node.parent), node_id)
         return G
 
-    def visualize_tree(self,tree, fontsize=8, save_path=None):
+    def visualize_tree(self, tree, fontsize=8, save_path=None):
         # Build graph from tree
         graph = self.build_graph_from_tree(tree)
         root_id = id(tree[0])
@@ -297,6 +298,17 @@ class RRT:
             # print("here5")
 
         return tree
+
+    def save_tree(self, tree, filename):
+        """Serialize the given object (tree or list of trees) to the specified filename."""
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, 'wb') as f:
+            pickle.dump(tree, f)
+
+    def load_tree(self, filename):
+        """Load a previously saved tree (or list of trees) from the specified filename."""
+        with open(filename, 'rb') as f:
+            return pickle.load(f)
 
 class MCTS:
     def __init__(self, environment, max_episode_steps=100):
@@ -645,7 +657,7 @@ def principal_component_analysis(trajectories, save_path=None):
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
     plt.grid(True)
-    
+
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         plt.savefig(save_path)

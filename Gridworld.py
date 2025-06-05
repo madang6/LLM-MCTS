@@ -1,4 +1,5 @@
 import os
+import yaml
 import random
 import matplotlib.pyplot as plt
 
@@ -116,7 +117,7 @@ class GridWorld():
                 return 0
         return 0  # Did not reach terminal state
 
-    def plot_episode(self, path):
+    def plot_episode(self, path, save_path=None):
         """Plot the grid world and the episode path."""
         # Extract positions from state tuples for plotting.
         xs = [state[0][0][0] + 0.5 for state in path]
@@ -163,76 +164,61 @@ class GridWorld():
         handles, labels = plt.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
         plt.legend(by_label.values(), by_label.keys())
-        plt.show()
+        
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
     
+def load_config(path):
+    with open(path, "r") as f:
+        return yaml.safe_load(f)
 
-
-def main():
+def main(config_path="config.yml"):
     project_root = os.path.dirname(os.path.abspath(__file__))
     mcts_list_path = os.path.join(project_root, "mcts_trees.pkl")
     mcts_txt_path = os.path.join(project_root, "formatted_trees.txt")
+    decision_tree_path = os.path.join(project_root, "plots", "decision_tree.png")
+    trajectory_path = os.path.join(project_root, "plots", "episode.png")
 
-    
-    random.seed(56)  # For reproducibility.
-    # Define the grid world and sub-objectives.
-    GRID_WIDTH = 5
-    GRID_HEIGHT = 5
-    START = ((0, 0), (20))
-    GOAL = (2, 2)
-    SUB_OBJECTIVES = [(random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1)) for _ in range(2)]
-    # SUB_OBJECTIVES = [(0, 2), (random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1))]
-    # SUB_OBJECTIVES = [(2, 0),(0, 2)]
-    # SUB_OBJECTIVES = [(0, 2)]
-    # SUB_OBJECTIVES = [(0, 3),(0, 4)]
-    # SUB_OBJECTIVES = [(0, 4)]
-    # SUB_OBJECTIVES =  [(4, 0), (3, 4)]
-    # SUB_OBJECTIVES =  [(4, 0)]
-    # SUB_OBJECTIVES = [(0, 2), (3, 1)]
-    # SUB_OBJECTIVES = [(0, 2)]
-    # SUB_OBJECTIVES = [(2, 3), (3, 1)]
-    # SUB_OBJECTIVES = [(2, 3)]
-    OBSTACLES = [(random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1)) for _ in range(2)]
-    # OBSTACLES = [(0,0),(4,1)]
-    # OBSTACLES = [(4,1)]
-    # OBSTACLES = [(4,1),(4,1)]
-    # OBSTACLES = [(4,1)]
-    # OBSTACLES =  [(2, 4), (3, 1)]
-    # OBSTACLES =  [(2, 4)]
-    # OBSTACLES = [(3, 2), (2, 4)]
-    # OBSTACLES = [(3, 2)]
-    # OBSTACLES = [(2, 0), (3, 1)]
-    # OBSTACLES = [(2, 0)]
+    config = load_config(config_path)
 
-    
-    # Interesting failure ICs
-    # - back and forth till battery runs out
-    # SUB_OBJECTIVES = [(0, 3), (4, 0)]
-    # OBSTACLES = [(2, 4), (1, 0)]
-    # - heuristic counterfactual
-    # SUB_OBJECTIVES = [(0, 2), (3, 0)]
-    OBSTACLE_COST = 10
-    MAX_EPISODE_STEPS = 10 # Number of real agent actions possible in an episode
-    MAX_ROLLOUT_STEPS = 20 # Rollout depth
+    random.seed(config.get("random_seed", 56))  # For reproducibility.
+
+    GRID_WIDTH = config.get("grid_width", 5)
+    GRID_HEIGHT = config.get("grid_height", 5)
+    start_pos = tuple(config.get("start_position", [0, 0]))
+    start_battery = config.get("start_battery", 20)
+    START = (start_pos, start_battery)
+    GOAL = tuple(config.get("goal", [2, 2]))
+    SUB_OBJECTIVES = [tuple(obj) for obj in config.get("sub_objectives", [])]
+    OBSTACLES = [tuple(obs) for obs in config.get("obstacles", [])]
+
+    OBSTACLE_COST = config.get("obstacle_cost", 10)
+    MAX_EPISODE_STEPS = config.get("max_episode_steps", 10) # Number of real agent actions possible in an episode
+    MAX_ROLLOUT_STEPS = config.get("max_rollout_steps", 20) # Rollout depth
+
 
     #RRT parameters
     # MAX_EPISODE_STEPS = 1 # Number of real agent actions possible in an episode
     # MAX_ROLLOUT_STEPS = 200 # Rollout depth
 
-    iterations_per_move = 100 # Number of MCTS iterations per move.
+    iterations_per_move = config.get("iterations_per_move", 100) # Number of MCTS iterations per move.
 
     grid = GridWorld(GRID_WIDTH, GRID_HEIGHT, START, GOAL, SUB_OBJECTIVES, OBSTACLES, MAX_ROLLOUT_STEPS,
                      OBSTACLE_COST)
     robot = MCTS(grid, MAX_EPISODE_STEPS)
     # robot = RRT(grid, MAX_EPISODE_STEPS)
 
-    
-    random.seed(62)  # For reproducibility.
+    random.seed(config.get("random_seed_episode", 62))  # For reproducibility.
 
     # Simulate an episode.
     episode_path, tree_list = robot.simulate_episode(iterations_per_move)
     # episode_path, trajectories = robot.simulate_episode()
 
-    print("Success* Episode path (each state shows (position, objectives_remaining)):")
+    print("Episode path (each state shows (position, objectives_remaining)):")
     for state in episode_path:
         print(state)
 
@@ -245,14 +231,17 @@ def main():
     # robot.save_tree(tree_list, mcts_list_path)
     
     # Save the list of MCTS trees from the episode for evaluation.
-    # robot.save_formatted_trees_to_file(mcts_list_path, mcts_txt_path)
-    # print("MCTS trees saved to mcts_trees.pkl")
+    robot.save_formatted_trees_to_file(mcts_list_path, mcts_txt_path)
+    print("MCTS trees saved to mcts_trees.pkl")
 
-    grid.plot_episode(episode_path)
-    # robot.load_and_plot_tree(mcts_txt_path, 6)
+    grid.plot_episode(episode_path, save_path=trajectory_path)
+    robot.load_and_plot_tree(mcts_txt_path, 6, save_path=decision_tree_path)
 
     # principal_component_analysis(trajectories)
 
-
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Run GridWorld simulation")
+    parser.add_argument("--config", default="config.yml", help="Path to config file")
+    args = parser.parse_args()
+    main(args.config)

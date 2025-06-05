@@ -39,7 +39,6 @@ class RRT:
         # If SUB_OBJECTIVES is not set or empty, use an empty tuple.
         objectives = tuple(self.environment.SUB_OBJECTIVES) if self.environment.SUB_OBJECTIVES else tuple()
         current_state = (self.environment.START, objectives)
-        # import pdb; pdb.set_trace()
         # path = [current_state]
         root = Node(current_state, environment=self.environment)
         # tree = [root]
@@ -172,7 +171,7 @@ class RRT:
                 G.add_edge(id(node.parent), node_id)
         return G
 
-    def visualize_tree(self,tree, fontsize=8):
+    def visualize_tree(self,tree, fontsize=8, save_path=None):
         # Build graph from tree
         graph = self.build_graph_from_tree(tree)
         root_id = id(tree[0])
@@ -181,8 +180,13 @@ class RRT:
         plt.figure(figsize=(25, 25))
         nx.draw(graph, pos, labels=labels, node_color='lightblue', arrowstyle='->', arrowsize=10, font_size=fontsize)
         plt.title("Hierarchical Layout of RRT Tree")
-        plt.show()
-    
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
+
     def sample_state(self):
         x = random.randint(0, self.environment.GRID_WIDTH - 1)
         y = random.randint(0, self.environment.GRID_HEIGHT - 1)
@@ -219,7 +223,6 @@ class RRT:
         """
         # Build a list of positions from the nodes.
         positions = [node.state[0][0] for node in tree]
-        # import pdb; pdb.set_trace()
         # Build the KDTree on these positions.
         kd_tree = cKDTree(positions)
         
@@ -456,7 +459,7 @@ class MCTS:
 
     #     plt.tight_layout()
     #     plt.show()
-    def load_and_plot_tree(self, filename, decision_step):
+    def load_and_plot_tree(self, filename, decision_step, save_path=None):
         """Load the tree text from file and plot only the tree for the given decision step."""
         with open(filename, "r") as f:
             tree_text = f.read()
@@ -499,7 +502,13 @@ class MCTS:
         ax.set_title(f"Decision Step {decision_step}")
         ax.axis('off')
         plt.tight_layout()
-        plt.show()
+
+        if save_path:
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            plt.savefig(save_path)
+            plt.close()
+        else:
+            plt.show()
 
     def parse_tree_section(self, lines):
         # Regex to match a node line and extract the indent, state, visits, reward.
@@ -606,7 +615,7 @@ def flatten_states(states):
     num_subobjs = len(first_state[1]) if first_state[1] else 0
     return [flatten_state(state, num_subobjs) for state in states]
 
-def principal_component_analysis(trajectories):
+def principal_component_analysis(trajectories, save_path=None):
 
     stacked_trajectories = []
     for trajectory in trajectories:
@@ -636,6 +645,11 @@ def principal_component_analysis(trajectories):
     plt.xlabel('Principal Component 1')
     plt.ylabel('Principal Component 2')
     plt.grid(True)
-    plt.show()
-
+    
+    if save_path:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        plt.savefig(save_path)
+        plt.close()
+    else:
+        plt.show()
     

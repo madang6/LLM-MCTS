@@ -1,0 +1,24 @@
+random_seed: 56
+random_seed_episode: 62
+grid_width: 5
+grid_height: 5
+start_position: [0, 0]
+start_battery: 20
+goal: [2, 2]
+sub_objectives:
+  - [1, 3]
+  - [3, 1]
+obstacles:
+  - [0, 1]
+  - [4, 2]
+obstacle_cost: 5
+max_episode_steps: 10 # use 1 for RRT
+max_rollout_steps: 20 # use 200 for RRT
+iterations_per_move: 100
+
+# Interesting failure ICs
+# - back and forth till battery runs out
+# SUB_OBJECTIVES = [(0, 3), (4, 0)]
+# OBSTACLES = [(2, 4), (1, 0)]
+# - heuristic counterfactual
+# SUB_OBJECTIVES = [(0, 2), (3, 0)]
